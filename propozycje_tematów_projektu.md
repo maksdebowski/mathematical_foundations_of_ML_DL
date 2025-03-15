@@ -2,10 +2,13 @@
 
 ## Computer Vision:
 
-- Medyczne dane syntetyczne, wykrywanie anomalii lub wąski zbiór danych medycznych i diffusion model.
+- Medyczne dane syntetyczne (augmentacja danych w klasyfikacji obrazow medycznych)
+- Wykrywanie anomalii lub wąski zbiór danych medycznych i diffusion model.
 - Geolokacja, model do grania w geoguessr.
-- Pomocnik do osób niewidomych, ostrzeganie przed przeszkodami.
+- Pomocnik dla osób niewidomych, ostrzeganie przed przeszkodami.
 - Wykrywanie tornand i huraganów gdzie uderzy i jak mocno.
+- System wspomagania diagnostyki medycznej z analiza obrazow.
+  (np. Kaggle: `https://www.kaggle.com/competitions/isic-2024-challenge/overview`)
 
 ## Szeregi Czasowe:
 
