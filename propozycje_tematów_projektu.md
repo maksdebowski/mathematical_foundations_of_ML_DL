@@ -2,6 +2,8 @@
 
 ## Computer Vision:
 
+_CAŁE TO CIEKAWE_
+
 - Medyczne dane syntetyczne (augmentacja danych w klasyfikacji obrazow medycznych)
 - Wykrywanie anomalii lub wąski zbiór danych medycznych i diffusion model.
 - Geolokacja, model do grania w geoguessr.
@@ -11,6 +13,8 @@
   (np. Kaggle: `https://www.kaggle.com/competitions/isic-2024-challenge/overview`)
 
 ## Szeregi Czasowe:
+
+_CAŁE TO CIEKAWE_
 
 - Detekcja anomalii w syntetycznych danych finansowych z wykorzystaniem modeli generatywnych i probabilistycznej walidacji statystycznej.
 - Estymacja ryzyka inwestycyjnego z wykorzystaniem sieci neuronowych i weryfikacja statystyczną -> Value at Risk -> Conditional Value at Risk.
@@ -23,6 +27,8 @@
 - Estymacja parametrów stochastycznych równań różniczkowych w finansach przy użyciu sieci neuronowych (Neural SDE)
 
 ## Analiza dźwieku
+
+_CAŁE TO CIEKAWE_
 
 - Rozpoznawanie gatunków ptaków po dźwiękach (Kaggle: `https://www.kaggle.com/competitions/birdclef-2025/overview`)
 
