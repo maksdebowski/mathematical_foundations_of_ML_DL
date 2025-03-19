@@ -108,7 +108,7 @@ if __name__ == "__main__":
         KNeighborsClassifier(n_neighbors=2),
         KNeighborsClassifier(n_neighbors=3),
         MLPClassifier(
-            hidden_layer_sizes=(2, 3, 2),
+            hidden_layer_sizes=(2, 3),
             activation="tanh",
             learning_rate="adaptive",
             learning_rate_init=0.01,
