@@ -104,7 +104,7 @@ if __name__ == '__main__':
     algos = [Perceptron(), DecisionTreeClassifier(max_depth=1),DecisionTreeClassifier(max_depth=2),SVC(kernel='rbf'),
              SVC(kernel='linear'), KNeighborsClassifier(n_neighbors=1), 
              KNeighborsClassifier(n_neighbors=2), KNeighborsClassifier(n_neighbors=3), 
-            MLPClassifier(hidden_layer_sizes=(2,3,2), max_iter=2000, learning_rate_init=0.1, random_state=42, activation='tanh')]
+            MLPClassifier(hidden_layer_sizes=(3,), max_iter=2000, learning_rate_init=0.1, random_state=42, activation='tanh')]
     
     plt.figure(figsize=(30, 40), constrained_layout=True)
     
