@@ -44,3 +44,11 @@ _CAŁE TO CIEKAWE_
 - American Sign Language Recognition (Kaggle: `https://www.kaggle.com/competitions/asl-fingerspelling/overview`)
 - Child Mind Institute - detakcja stanów snu (Kaggle: `https://www.kaggle.com/competitions/child-mind-institute-detect-sleep-states/overview`)
 - Systemy rekomendacyjne (netflix, spotify etc.)
+
+
+
+Propozycje:
+1) Detekcja anomalii + generowanie danych; przyklad medyczny(analogicznie finansowy) - Generator tworzy obrazy z roznymi patologiami, rzadkimi, lub trudnymi do wykrycia; Uczy sie identyfikowac obszary podejrzane, a system generuje coraz trudniejsze przypadki, by zwiekszyc czulosc "detektora", jako dataset: waski zbior jakis rzadkich guzow, zmian patologicznych lub wczesnych stadiow chorob.
+2) Augmentacja danych dla poprawy klasyfikacji(opisane dla medycyny, ale np. przewidywanie zachowan rynku w finansach); rozwiazujemy problem z imbalanced dataset(dosc czeste w finansach/medycynie), a system uczy sie rozrozniac miedzy wieloma(jak duzo - ciezko na tym etapie okreslic) kategoriami chorób. System generuje warianty schorzeń o róznym nasileniu; Mogloby byc potencjalnie wykorzystywane jako systemy diagnostyczne, klasyfikacja chorob, ocena zaawanoswania schorzen
+
+W obu przypadkach temat jest dosc dobrze opisany(latwo znalezc badania/modele na ten temat) wiec nasz model mozna by w jakis sposob porownywac z modelami dostepnymi na ten moment w sieci(nie neuronowej, zwyklym arxiv :D ).
