@@ -52,3 +52,17 @@ Propozycje:
 2) Augmentacja danych dla poprawy klasyfikacji(opisane dla medycyny, ale np. przewidywanie zachowan rynku w finansach); rozwiazujemy problem z imbalanced dataset(dosc czeste w finansach/medycynie), a system uczy sie rozrozniac miedzy wieloma(jak duzo - ciezko na tym etapie okreslic) kategoriami chorób. System generuje warianty schorzeń o róznym nasileniu; Mogloby byc potencjalnie wykorzystywane jako systemy diagnostyczne, klasyfikacja chorob, ocena zaawanoswania schorzen
 
 W obu przypadkach temat jest dosc dobrze opisany(latwo znalezc badania/modele na ten temat) wiec nasz model mozna by w jakis sposob porownywac z modelami dostepnymi na ten moment w sieci(nie neuronowej, zwyklym arxiv :D ).
+Badania na ktorych mozna sie jakos oprzec/"poprawic":
+
+FINANSE:
+https://www.researchgate.net/publication/346491432_Deep_Learning_Based_Hybrid_Computational_Intelligence_Models_for_Options_Pricing - w 2020 dodany, jest duza szansa na poprawe wynikow, by pokonac ich model(ich zalozeniem bylo pokonac Blacka-Scholesa)
+https://cs230.stanford.edu/projects_fall_2019/reports/26260984.pdf - stock market prediction
+https://cs230.stanford.edu/projects_winter_2021/reports/70667451.pdf - option pricing using DL
+https://www.researchgate.net/publication/377393910_Deep_Learning_in_Stock_Market_Forecasting_Comparative_Analysis_of_Neural_Network_Architectures_Across_NSE_and_NYSE - podejście podobne, ale "giełda" na której będzie to sprawdzane zbudowana przez nas.
+https://www.researchgate.net/publication/350334084_Detection_of_Anomaly_Stock_Price_Based_on_Time_Series_Deep_Learning_Models - detekcja anomali, znów 2020 rok; mozna cos dodac?
+
+MEDYCYNA:
+https://www.mdpi.com/2313-433X/9/4/81 - wygląda ciekawie, ale schowane za paywallem ;(
+https://link.springer.com/article/10.1007/s11042-023-14817-z - klasyczne podejście, moglibysmy zmienić problem(brain mri?), zbudować coś do niego(moze jakas augmentacja i porownanie wynikow z dostepnymi danymi)
+https://www.researchgate.net/publication/369846612_Simulation_based_evaluation_framework_for_deep_learning_unsupervised_anomaly_detection_on_brain_FDG-PET - anomaly detection
+https://www.mdpi.com/1424-8220/23/7/3440 - tutaj do ewentualnej ewaluacji naszych syntetycznych danych.
