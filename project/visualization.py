@@ -10,13 +10,11 @@ from scipy import stats
 
 plt.style.use(config.PLOT_STYLE)
 
-def plot_initial_data(df, ticker=config.TICKER, shock_date=config.SHOCK_DATE):
+def plot_initial_data(df, ticker=config.TICKER, shock_date=config.SHOCK_DATE, vol_col='Realized_Volatility_Daily'):
     print("\nPlotting initial price and volatility...")
     fig, ax = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
     price_col = 'Adj Close'
-    vol_col = 'Realized_Volatility_Daily'
-
     if price_col not in df.columns:
         print(f"Warning: Price column '{price_col}' not found for plotting.")
         return
@@ -35,7 +33,6 @@ def plot_initial_data(df, ticker=config.TICKER, shock_date=config.SHOCK_DATE):
         return
 
 
-    # Plot Price
     ax[0].plot(df.index, df[price_col], color='blue')
     ax[0].set_ylabel(f'Price ({price_col})')
     ax[0].set_title(f'Price History for {ticker}')
@@ -45,7 +42,6 @@ def plot_initial_data(df, ticker=config.TICKER, shock_date=config.SHOCK_DATE):
     ax[0].legend()
     ax[0].set_yscale('log')
 
-    # Plot Volatility
     plot_vol = df[vol_col].dropna()
     if not plot_vol.empty:
         ax[1].plot(plot_vol.index, plot_vol, color='green')
@@ -55,7 +51,7 @@ def plot_initial_data(df, ticker=config.TICKER, shock_date=config.SHOCK_DATE):
         if shock_date:
             ax[1].axvline(pd.to_datetime(shock_date), color='red', linestyle='--', lw=1, label=f'Shock ({shock_date})')
         ax[1].legend()
-        ax[1].set_ylim(bottom=0) # Volatility >= 0
+        ax[1].set_ylim(bottom=0)
 
         ax[1].xaxis.set_major_locator(mdates.YearLocator())
         ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
@@ -71,7 +67,6 @@ def plot_initial_data(df, ticker=config.TICKER, shock_date=config.SHOCK_DATE):
 def plot_analysis_distributions(returns_before, returns_after, vol_before, vol_after, shock_date=config.SHOCK_DATE):
     print("\nPlotting analysis distributions...")
 
-    # --- Volatility Distribution ---
     if vol_before is not None and not vol_before.empty and vol_after is not None and not vol_after.empty:
         plt.figure(figsize=(10, 5))
         sns.histplot(vol_before, color="skyblue", label='Before Shock', kde=True, stat="density", linewidth=0)
@@ -85,11 +80,9 @@ def plot_analysis_distributions(returns_before, returns_after, vol_before, vol_a
         print("Skipping volatility distribution plot (insufficient data).")
 
 
-    # --- Log Return Distribution ---
     if returns_before is not None and not returns_before.empty and returns_after is not None and not returns_after.empty:
         fig_ret, ax_ret = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
 
-        # Before Shock Histogram + Normal Fit
         sns.histplot(returns_before, ax=ax_ret[0], kde=False, stat="density", label='Empirical', color='skyblue')
         mu_before, std_before = stats.norm.fit(returns_before)
         xmin, xmax = ax_ret[0].get_xlim()
@@ -100,7 +93,6 @@ def plot_analysis_distributions(returns_before, returns_after, vol_before, vol_a
         ax_ret[0].set_xlabel('Log Return')
         ax_ret[0].legend()
 
-        # After Shock Histogram + Normal Fit
         sns.histplot(returns_after, ax=ax_ret[1], kde=False, stat="density", label='Empirical', color='salmon')
         mu_after, std_after = stats.norm.fit(returns_after)
         xmin, xmax = ax_ret[1].get_xlim()
@@ -114,7 +106,6 @@ def plot_analysis_distributions(returns_before, returns_after, vol_before, vol_a
         plt.tight_layout()
         plt.show()
 
-        # --- Q-Q Plots ---
         fig_qq, ax_qq = plt.subplots(1, 2, figsize=(12, 5))
 
         sm.qqplot(returns_before, stats.norm, fit=True, line='45', ax=ax_qq[0])
@@ -132,26 +123,23 @@ def plot_analysis_distributions(returns_before, returns_after, vol_before, vol_a
 def plot_simulation_results(df, pre_shock_fit_price_df, pre_shock_fit_vol_df,
                             sim_prices_stats, sim_vol_stats,
                             ticker=config.TICKER, shock_date=config.SHOCK_DATE, model_name="GARCH"):
-    print(f"\nGenerating counterfactual simulation plots ({model_name})...")
+    print(f"\nGenerating simulation plots ({model_name})...")
     fig, axes = plt.subplots(2, 1, figsize=(14, 12), sharex=True)
     fig.suptitle(f'{model_name} Model: Pre-Shock Fit & Post-Shock Simulation for {ticker}', fontsize=16)
 
     price_col = 'Adj Close' if 'Adj Close' in df.columns else 'Close'
     vol_col = 'Realized_Volatility_Daily'
 
-    # --- Price Plot ---
-    # Actual Price (Full Period)
     axes[0].plot(df.index, df[price_col], label='Actual Price', color='#1f77b4', linewidth=1.5, zorder=1)
-    # Fitted Price (Pre-Shock)
     if pre_shock_fit_price_df is not None and not pre_shock_fit_price_df.empty:
         axes[0].plot(pre_shock_fit_price_df.index, pre_shock_fit_price_df['Fitted_Price'],
                      label=f'{model_name} Fitted (In-Sample)', color='#ff7f0e', linewidth=1.5, linestyle='--', zorder=2)
-    # Simulated Price (Post-Shock)
     if sim_prices_stats is not None and not sim_prices_stats.empty:
         axes[0].plot(sim_prices_stats.index, sim_prices_stats['Median'],
                      label=f'{model_name} Simulated Median', color='#2ca02c', linewidth=1.5, linestyle='--', zorder=2)
-        axes[0].fill_between(sim_prices_stats.index, sim_prices_stats['Quantile_05'], sim_prices_stats['Quantile_95'],
-                             color='#2ca02c', alpha=0.2, label='Simulated 5%-95% Range', zorder=0)
+        if 'Quantile_05' in sim_prices_stats.columns and 'Quantile_95' in sim_prices_stats.columns:
+            axes[0].fill_between(sim_prices_stats.index, sim_prices_stats['Quantile_05'], sim_prices_stats['Quantile_95'],
+                                 color='#2ca02c', alpha=0.2, label='Simulated 5%-95% Price Range', zorder=0)
 
     axes[0].axvline(pd.to_datetime(shock_date), color='red', linestyle='--', lw=1.5, label=f'Shock ({shock_date})', zorder=3)
     axes[0].set_ylabel(f"{price_col} Price", fontsize=12)
@@ -160,21 +148,20 @@ def plot_simulation_results(df, pre_shock_fit_price_df, pre_shock_fit_vol_df,
     axes[0].grid(True, alpha=0.3)
     axes[0].set_yscale('log')
 
-    # --- Volatility Plot ---
-    # Actual Volatility (Full Period, where available)
     actual_vol = df[vol_col].dropna()
     if not actual_vol.empty:
         axes[1].plot(actual_vol.index, actual_vol, label='Actual Volatility (Proxy)', color='#1f77b4', linewidth=1.5, zorder=1)
-    # Fitted Volatility (Pre-Shock)
     if pre_shock_fit_vol_df is not None and not pre_shock_fit_vol_df.empty:
         axes[1].plot(pre_shock_fit_vol_df.index, pre_shock_fit_vol_df["Fitted_Volatility"],
                      label=f'{model_name} Fitted Volatility (In-Sample)', color='#ff7f0e', linewidth=1.5, linestyle='--', zorder=2)
-    # Simulated Volatility (Post-Shock)
+
     if sim_vol_stats is not None and not sim_vol_stats.empty:
         axes[1].plot(sim_vol_stats.index, sim_vol_stats['Median'],
                      label=f'{model_name} Simulated Median Volatility', color='#2ca02c', linewidth=1.5, linestyle='--', zorder=2)
-        axes[1].fill_between(sim_vol_stats.index, sim_vol_stats['Quantile_05'], sim_vol_stats['Quantile_95'],
-                             color='#2ca02c', alpha=0.2, label='Simulated 5%-95% Vol Range', zorder=0)
+
+        if 'Quantile_05' in sim_vol_stats.columns and 'Quantile_95' in sim_vol_stats.columns:
+            axes[1].fill_between(sim_vol_stats.index, sim_vol_stats['Quantile_05'], sim_vol_stats['Quantile_95'],
+                                 color='#2ca02c', alpha=0.2, label='Simulated 5%-95% Vol Range', zorder=0)
 
     axes[1].axvline(pd.to_datetime(shock_date), color='red', linestyle='--', lw=1.5, label=f'Shock ({shock_date})', zorder=3)
     axes[1].set_ylabel('Annualized Volatility (%)', fontsize=12)
@@ -193,6 +180,7 @@ def plot_simulation_results(df, pre_shock_fit_price_df, pre_shock_fit_vol_df,
     plt.show()
 
 
+
 def plot_naive_simulation_results(df_post_shock, sim_prices_stats_naive,
                                   ticker=config.TICKER, shock_date=config.SHOCK_DATE,
                                   approach_name="Naive Approach",
@@ -204,15 +192,46 @@ def plot_naive_simulation_results(df_post_shock, sim_prices_stats_naive,
     price_col = 'Adj Close'
     vol_col = 'Realized_Volatility_Daily'
 
-    # --- Price Plot ---
-    actual_prices_post_shock = df_post_shock[price_col]
-    axes[0].plot(actual_prices_post_shock.index, actual_prices_post_shock,
-                 label='Actual Price (Post-Shock)', color='black', linewidth=1.5, alpha=0.9, zorder=1)
+    actual_prices_post_shock = df_post_shock[price_col].dropna()
+    if not actual_prices_post_shock.empty:
+        axes[0].plot(actual_prices_post_shock.index, actual_prices_post_shock,
+                     label='Actual Price (Post-Shock)', color='black', linewidth=1.5, alpha=0.9, zorder=1)
+    else:
+        print(f"Warning [{approach_name}]: No actual post-shock prices to plot.")
+
     if sim_prices_stats_naive is not None and not sim_prices_stats_naive.empty:
-        axes[0].plot(sim_prices_stats_naive.index, sim_prices_stats_naive['Median'],
-                     label=f'Median {approach_name} Sim.', color='darkcyan', linewidth=1.5, linestyle='--', zorder=2)
-        axes[0].fill_between(sim_prices_stats_naive.index, sim_prices_stats_naive['Quantile_05'], sim_prices_stats_naive['Quantile_95'],
-                             color='darkcyan', alpha=0.15, label='5-95% Range Sim.', zorder=0)
+        median_prices_to_plot = sim_prices_stats_naive['Median'].dropna()
+        if not median_prices_to_plot.empty:
+            if median_prices_to_plot.min() <= 0:
+                print(f"Warning [{approach_name}]: Simulated median prices contain non-positive values. Log scale might hide data.")
+            axes[0].plot(median_prices_to_plot.index, median_prices_to_plot,
+                         label=f'Median {approach_name} Sim.', color='darkcyan', linewidth=1.5, linestyle='--', zorder=2)
+            print(f"Debug [{approach_name}]: Plotted median prices. Min: {median_prices_to_plot.min():.2f}, Max: {median_prices_to_plot.max():.2f}")
+        else:
+            print(f"Warning [{approach_name}]: Median simulated prices are empty after dropna.")
+
+        if 'Quantile_05' in sim_prices_stats_naive.columns and 'Quantile_95' in sim_prices_stats_naive.columns:
+             q05 = sim_prices_stats_naive['Quantile_05'].dropna()
+             q95 = sim_prices_stats_naive['Quantile_95'].dropna()
+             if not q05.empty and not q95.empty:
+                 common_idx = q05.index.intersection(q95.index)
+                 q05 = q05.loc[common_idx]
+                 q95 = q95.loc[common_idx]
+                 if not q05.empty:
+                     if q05.min() <= 0:
+                         print(f"Warning [{approach_name}]: Simulated 5% quantile prices contain non-positive values. Log scale might hide data.")
+                     axes[0].fill_between(common_idx, q05, q95,
+                                          color='darkcyan', alpha=0.15, label='5-95% Range Sim.', zorder=0)
+                     print(f"Debug [{approach_name}]: Plotted price quantiles.")
+                 else:
+                     print(f"Warning [{approach_name}]: Price quantiles empty after intersection/dropna.")
+             else:
+                 print(f"Warning [{approach_name}]: Price quantiles empty after initial dropna.")
+        else:
+            print(f"Warning [{approach_name}]: Quantile columns missing in sim_prices_stats_naive.")
+    else:
+        print(f"Warning [{approach_name}]: sim_prices_stats_naive is None or empty.")
+
 
     axes[0].axvline(pd.to_datetime(shock_date), color='red', linestyle='--', lw=1.5, label=f'Shock ({shock_date})', zorder=3)
     axes[0].set_ylabel(f"{price_col} Price", fontsize=12)
@@ -221,19 +240,34 @@ def plot_naive_simulation_results(df_post_shock, sim_prices_stats_naive,
     axes[0].grid(True, alpha=0.3)
     axes[0].set_yscale('log')
 
-    # --- Volatility Plot ---
     actual_vol_post_shock = df_post_shock[vol_col].dropna()
     if not actual_vol_post_shock.empty:
         axes[1].plot(actual_vol_post_shock.index, actual_vol_post_shock,
                      label='Actual Volatility (Post-Shock)', color='black', linewidth=1.5, alpha=0.9, zorder=1)
+    else:
+        print(f"Warning [{approach_name}]: No actual post-shock volatility to plot.")
 
     if vol_data is not None:
         if isinstance(vol_data, pd.Series):
-             axes[1].plot(vol_data.index, vol_data,
-                         label=vol_label, color='darkcyan', linewidth=1.5, linestyle=':', zorder=2)
+             vol_to_plot = vol_data.dropna()
+             if not vol_to_plot.empty:
+                 axes[1].plot(vol_to_plot.index, vol_to_plot,
+                             label=vol_label, color='darkcyan', linewidth=1.5, linestyle=':', zorder=2)
+                 print(f"Debug [{approach_name}]: Plotted dynamic volatility. Min: {vol_to_plot.min():.2f}, Max: {vol_to_plot.max():.2f}, Mean: {vol_to_plot.mean():.2f}")
+             else:
+                 print(f"Warning [{approach_name}]: Dynamic volatility data (vol_data Series) is empty after dropna.")
         elif isinstance(vol_data, (int, float)):
-             axes[1].axhline(vol_data, color='forestgreen', linestyle='--', linewidth=1.5,
-                             label=f'{vol_label} ({vol_data:.2f}%)', zorder=2)
+             if pd.notna(vol_data):
+                 axes[1].axhline(vol_data, color='forestgreen', linestyle='--', linewidth=1.5,
+                                 label=f'{vol_label} ({vol_data:.2f}%)', zorder=2)
+                 print(f"Debug [{approach_name}]: Plotted fixed volatility line at {vol_data:.2f}%.")
+             else:
+                  print(f"Warning [{approach_name}]: Fixed volatility value (vol_data float) is NaN.")
+        else:
+             print(f"Warning [{approach_name}]: vol_data has unexpected type: {type(vol_data)}")
+    else:
+        print(f"Warning [{approach_name}]: vol_data is None.")
+
 
     axes[1].axvline(pd.to_datetime(shock_date), color='red', linestyle='--', lw=1.5, label=f'Shock ({shock_date})', zorder=3)
     axes[1].set_ylabel("Annualized Volatility (%)", fontsize=12)
@@ -243,10 +277,14 @@ def plot_naive_simulation_results(df_post_shock, sim_prices_stats_naive,
     axes[1].grid(True, alpha=0.3)
     axes[1].set_ylim(bottom=0)
 
-    axes[1].xaxis.set_major_locator(mdates.YearLocator())
-    axes[1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-    axes[1].xaxis.set_minor_locator(mdates.MonthLocator(interval=3))
-    plt.setp(axes[0].get_xticklabels(), visible=False)
+    try:
+        axes[1].xaxis.set_major_locator(mdates.YearLocator())
+        axes[1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+        axes[1].xaxis.set_minor_locator(mdates.MonthLocator(interval=3))
+        plt.setp(axes[0].get_xticklabels(), visible=False)
+    except Exception as e:
+        print(f"Warning [{approach_name}]: Error setting date formatters: {e}")
+
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.96])
     plt.show()

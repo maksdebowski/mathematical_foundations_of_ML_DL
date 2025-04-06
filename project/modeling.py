@@ -90,90 +90,90 @@ def select_best_garch_model(returns, max_p = config.MAX_GARCH_P,max_q = config.M
 
 def calculate_fitted_values(model_results, returns, pre_shock_df,
                             annualization_factor=config.ANNUALIZATION_FACTOR):
+
+    if model_results is None:
+        print("Error: Model results are None. Cannot calculate fitted values.")
+        return None, None
     if returns.isnull().any():
         returns = returns.dropna()
+    if returns.empty:
+        print("Error: Returns series is empty after dropping NaNs.")
+        return None, None
 
-    fitted_vol_scaled_daily = model_results.conditional_volatility
-    fitted_vol_annualized = fitted_vol_scaled_daily * np.sqrt(annualization_factor)
+    try:
+        fitted_vol_scaled_daily = model_results.conditional_volatility
+        fitted_vol_annualized = fitted_vol_scaled_daily * np.sqrt(annualization_factor)
 
-    num_skipped_vol = len(returns) - len(fitted_vol_annualized)
-    fitted_vol_index = returns.index[num_skipped_vol:]
-    pre_shock_fit_vol_df = pd.DataFrame({'Fitted_Volatility': fitted_vol_annualized},
-                                        index = fitted_vol_index)
-    print(f"Fitted volatility calculated, starting from index {num_skipped_vol}"
-          f"({fitted_vol_index[0].date()})")
-
-    fitted_scaled_residuals = model_results.resid
-    fitted_std_residuals = model_results.std_resid
-
-    fitted_mu_scaled = model_results.params['mu']
-    fitted_log_returns = (fitted_mu_scaled + fitted_scaled_residuals) / 100.0
-
-    num_skipped_resid = len(returns) - len(fitted_log_returns)
-    fitted_price_index = returns.index[num_skipped_resid:]
-
-    if num_skipped_resid > 0:
-        returns_start_date = returns.index[0]
-        pre_shock_df_returns_start_idx = pre_shock_df.index.get_loc(returns_start_date)
-        fit_start_idx_in_df = pre_shock_df_returns_start_idx + num_skipped_resid
-
-        if fit_start_idx_in_df > 0:
-            start_price_index = fit_start_idx_in_df - 1
-            start_price = pre_shock_df['Adj Close'].iloc[start_price_index]
-            print(
-                f"Starting price for fitted values reconstruction: {start_price:.2f} on {pre_shock_df.index[start_price_index].date()}")
+        num_skipped_vol = len(returns) - len(fitted_vol_annualized)
+        if num_skipped_vol < 0:
+             print("Warning: More fitted volatility values than returns. Check alignment.")
+             fitted_vol_index = returns.index[abs(num_skipped_vol):]
+             fitted_vol_annualized = fitted_vol_annualized.iloc[-len(fitted_vol_index):]
+        elif num_skipped_vol > 0:
+             fitted_vol_index = returns.index[num_skipped_vol:]
         else:
-            print("Warning: Fit starts very early. Using first available price as base for reconstruction.")
-            start_price = pre_shock_df['Adj Close'].iloc[0]
-    else:
-        if pre_shock_df.index.get_loc(returns.index[0]) > 0:
-            start_price = pre_shock_df['Adj Close'].iloc[pre_shock_df.index.get_loc(returns.index[0]) - 1]
-        else:
-            start_price = pre_shock_df['Adj Close'].iloc[0] / np.exp(
-                fitted_log_returns.iloc[0])
+             fitted_vol_index = returns.index
 
-    fitted_prices_list = []
-    current_price = start_price
-    for log_ret in fitted_log_returns:
-        current_price = current_price * np.exp(log_ret)
-        fitted_prices_list.append(current_price)
+        pre_shock_fit_vol_df = pd.DataFrame({'Fitted_Volatility': fitted_vol_annualized.values},
+                                            index = fitted_vol_index)
+        print(f"Fitted volatility calculated, aligned with returns index from {fitted_vol_index[0].date()}.")
+
+    except Exception as e:
+        print(f"Error calculating fitted volatility: {e}")
+        pre_shock_fit_vol_df = None
+
+
+    try:
+        fitted_scaled_residuals = model_results.resid
+        fitted_mu_scaled = model_results.params['mu']
+
+        fitted_log_returns = (fitted_mu_scaled + fitted_scaled_residuals) / 100.0
+
+        num_skipped_resid = len(returns) - len(fitted_log_returns)
+        if num_skipped_resid < 0:
+             print("Warning: More fitted log returns than original returns. Check alignment.")
+             fitted_price_index = returns.index[abs(num_skipped_resid):]
+             fitted_log_returns = fitted_log_returns.iloc[-len(fitted_price_index):]
+        elif num_skipped_resid > 0:
+             fitted_price_index = returns.index[num_skipped_resid:]
+        else:
+             fitted_price_index = returns.index
+
+        if fitted_price_index.empty:
+             print("Error: Cannot determine index for fitted prices.")
+             return None, pre_shock_fit_vol_df
+
+        first_fit_date = fitted_price_index[0]
+        try:
+            loc_in_preshock = pre_shock_df.index.get_loc(first_fit_date)
+            if loc_in_preshock > 0:
+                start_price_date = pre_shock_df.index[loc_in_preshock - 1]
+                start_price = pre_shock_df.loc[start_price_date, 'Adj Close']
+                print(f"Starting price for fitted values reconstruction: {start_price:.2f} on {start_price_date.date()}")
+            else:
+                print("Warning: First fitted return is the first date in pre_shock_df. Estimating start price.")
+                first_actual_price = pre_shock_df.loc[first_fit_date, 'Adj Close']
+                first_log_ret = fitted_log_returns.iloc[0]
+                start_price = first_actual_price / np.exp(first_log_ret)
+                print(f"Estimated starting price: {start_price:.2f}")
+        except KeyError:
+             print(f"Error: Date {first_fit_date} not found in pre_shock_df index. Cannot determine start price.")
+             return None, pre_shock_fit_vol_df
+
+
+        fitted_prices_list = []
+        current_price = start_price
+        for log_ret in fitted_log_returns:
+            current_price = current_price * np.exp(log_ret)
+            fitted_prices_list.append(current_price)
 
         pre_shock_fit_price_df = pd.DataFrame({'Fitted_Price': fitted_prices_list}, index = fitted_price_index)
-        print(f"Fitted prices calculated, starting from index {num_skipped_resid} ({fitted_price_index[0].date()})")
+        print(f"Fitted prices calculated, length: {len(pre_shock_fit_price_df)}, starting from index date {fitted_price_index[0].date()}")
 
-        return pre_shock_fit_price_df, pre_shock_fit_vol_df
+    except Exception as e:
+        import traceback
+        print(f"Error calculating fitted prices: {e}")
+        traceback.print_exc()
+        pre_shock_fit_price_df = None
 
-if __name__ == "__main__":
-    # Create dummy data
-    np.random.seed(42)
-    dates = pd.date_range(start='2020-01-01', periods=800, freq='B')
-    true_vol = np.zeros(len(dates))
-    true_ret = np.zeros(len(dates))
-    true_vol[0] = 0.015 # Daily std dev
-    mu = 0.0001
-    omega = 0.000002
-    alpha = 0.1
-    beta = 0.88
-    for t in range(1, len(dates)):
-        true_vol[t] = np.sqrt(omega + alpha * true_ret[t-1]**2 + beta * true_vol[t-1]**2)
-        true_ret[t] = mu + np.random.normal(0, true_vol[t])
-
-    dummy_df = pd.DataFrame({'Log_Return': true_ret}, index=dates)
-    dummy_df['Adj Close'] = 100 * np.exp(dummy_df['Log_Return'].cumsum()) # Create dummy prices
-
-    print("Testing GARCH selection...")
-    best_garch, params_garch = select_best_garch_model(dummy_df['Log_Return'], max_p=2, max_q=2, model_type='GARCH')
-
-    if best_garch:
-        print("\nTesting GJR-GARCH selection...")
-        best_gjr, params_gjr = select_best_garch_model(dummy_df['Log_Return'], max_p=2, max_q=2, model_type='GJR')
-
-        if best_gjr:
-             print("\nTesting fitted value calculation (using best GJR)...")
-             # Need a pre_shock_df equivalent for the dummy data
-             fit_price, fit_vol = calculate_fitted_values(best_gjr, dummy_df['Log_Return'], dummy_df)
-             print("\nFitted Prices Head:")
-             print(fit_price.head())
-             print("\nFitted Volatility Head:")
-             print(fit_vol.head())
-
+    return pre_shock_fit_price_df, pre_shock_fit_vol_df
