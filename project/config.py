@@ -1,17 +1,17 @@
-TICKER = 'RHM.DE'
-START_DATE = '2019-01-01'
-SHOCK_DATE = '2022-02-24'
-EMD_DATE = '2025-04-04' #urodziny wtedy mam hehe
-INTERVAL = '1d'
+TICKER = "RHM.DE"
+START_DATE = "2019-01-01"
+SHOCK_DATE = "2022-02-24"
+EMD_DATE = "2025-04-04"  # urodziny wtedy mam hehe
+INTERVAL = "1d"
 
 WINDOW = 21
-ANNUALIZATION_FACTOR = 260 # moze 252?
+ANNUALIZATION_FACTOR = 260  # moze 252?
 
 MAX_GARCH_P = 3
 MAX_GARCH_Q = 3
 GJR_ORDER_O = 1
-MODEL_DISTRIBUTION = 't'
+MODEL_DISTRIBUTION = "t"
 
 N_SIMS = 20_000
 
-PLOT_STYLE = 'seaborn-v0_8-whitegrid'
+PLOT_STYLE = "seaborn-v0_8-whitegrid"
