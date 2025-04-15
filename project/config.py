@@ -15,3 +15,4 @@ MODEL_DISTRIBUTION = "t"
 N_SIMS = 20_000
 
 PLOT_STYLE = "seaborn-v0_8-whitegrid"
+TSFM_MODEL_NAME = "google/timesfm-1.0-200m"

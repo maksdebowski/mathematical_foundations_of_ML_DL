@@ -10,6 +10,155 @@ from scipy import stats
 
 plt.style.use(config.PLOT_STYLE)
 
+def plot_single_forecast_results(
+    df_post_shock,
+    forecast_price_df, # DataFrame z 'Predicted_Price'
+    forecast_vol_df=None, # Opcjonalny DataFrame z 'Predicted_Volatility'
+    ticker=config.TICKER,
+    shock_date=config.SHOCK_DATE,
+    model_name="Forecast Model",
+    price_col_forecast='Predicted_Price', # Nazwa kolumny w forecast_price_df
+    vol_col_forecast='Predicted_Volatility' # Nazwa kolumny w forecast_vol_df
+):
+    """
+    Rysuje wyniki dla modeli, które produkują pojedynczą linię prognozy (jak 1-Day Naive).
+    """
+    print(f"\nGenerowanie wykresu dla {model_name}...")
+    # Sprawdź, czy mamy dane do wykresu zmienności
+    plot_vol = forecast_vol_df is not None and not forecast_vol_df.empty and vol_col_forecast in forecast_vol_df.columns
+
+    n_plots = 2 if plot_vol else 1
+    fig, axes = plt.subplots(n_plots, 1, figsize=(14, 5 * n_plots), sharex=True)
+    if n_plots == 1:
+        axes = [axes] # Uczyń iterowalnym dla spójności
+
+    fig.suptitle(f"{model_name} Forecast for {ticker}", fontsize=16)
+
+    price_col_actual = "Adj Close"
+    vol_col_actual = "Realized_Volatility_Daily"
+
+    # --- Wykres Ceny ---
+    ax_price = axes[0]
+    actual_prices_post_shock = df_post_shock[price_col_actual].dropna()
+    if not actual_prices_post_shock.empty:
+        ax_price.plot(
+            actual_prices_post_shock.index,
+            actual_prices_post_shock,
+            label="Rzeczywista Cena (Po Szoku)",
+            color="black",
+            linewidth=1.5,
+            alpha=0.9,
+            zorder=1,
+        )
+    else:
+        print(f"Ostrzeżenie [{model_name}]: Brak rzeczywistych cen po szoku do narysowania.")
+
+    if forecast_price_df is not None and not forecast_price_df.empty:
+        if price_col_forecast in forecast_price_df.columns:
+            predicted_prices_to_plot = forecast_price_df[price_col_forecast].dropna()
+            if not predicted_prices_to_plot.empty:
+                ax_price.plot(
+                    predicted_prices_to_plot.index,
+                    predicted_prices_to_plot,
+                    label=f"Prognoza {model_name}",
+                    color="purple", # Kolor dla 1-day naive
+                    linewidth=1.5,
+                    linestyle="--",
+                    zorder=2,
+                )
+            else:
+                 print(f"Ostrzeżenie [{model_name}]: Przewidywane ceny są puste po dropna.")
+        else:
+            print(f"Ostrzeżenie [{model_name}]: Kolumna '{price_col_forecast}' nie znaleziona w df prognozy cen.")
+    else:
+        print(f"Ostrzeżenie [{model_name}]: forecast_price_df jest None lub pusty.")
+
+    ax_price.axvline(
+        pd.to_datetime(shock_date), color="red", linestyle="--", lw=1.5, label=f"Szok ({shock_date})", zorder=3
+    )
+    ax_price.set_ylabel(f"Cena {price_col_actual}", fontsize=12)
+    ax_price.set_title("Price Comparison: Actual vs. Forecast", fontsize=14)
+    ax_price.legend(frameon=True, fontsize=10)
+    ax_price.grid(True, alpha=0.3)
+
+    # Użyj skali logarytmicznej tylko jeśli ceny są dodatnie
+    try:
+        use_log_scale = False
+        if forecast_price_df is not None and not forecast_price_df.empty and price_col_forecast in forecast_price_df.columns:
+            # Sprawdź czy wszystkie wartości są dodatnie
+            all_preds_positive = (forecast_price_df[price_col_forecast].dropna() > 0).all()
+            all_actuals_positive = (actual_prices_post_shock > 0).all()
+            if all_preds_positive and all_actuals_positive:
+                use_log_scale = True
+
+        if use_log_scale:
+            ax_price.set_yscale("log")
+        else:
+            print(f"Info [{model_name}]: Nie używam skali logarytmicznej dla ceny z powodu wartości nie-dodatnich.")
+    except Exception as e:
+        print(f"Ostrzeżenie [{model_name}]: Błąd przy ustawianiu skali logarytmicznej: {e}")
+
+
+    # --- Wykres Zmienności (Opcjonalny) ---
+    if plot_vol:
+        ax_vol = axes[1]
+        actual_vol_post_shock = df_post_shock[vol_col_actual].dropna()
+        if not actual_vol_post_shock.empty:
+            ax_vol.plot(
+                actual_vol_post_shock.index,
+                actual_vol_post_shock,
+                label="Real Volatility (After Shock)",
+                color="black",
+                linewidth=1.5,
+                alpha=0.9,
+                zorder=1,
+            )
+        else:
+             print(f"Ostrzeżenie [{model_name}]: Brak rzeczywistej zmienności po szoku do narysowania.")
+
+        predicted_vol_to_plot = forecast_vol_df[vol_col_forecast].dropna()
+        if not predicted_vol_to_plot.empty:
+            ax_vol.plot(
+                predicted_vol_to_plot.index,
+                predicted_vol_to_plot,
+                label=f"Volatility {model_name}",
+                color="purple",
+                linewidth=1.5,
+                linestyle=":",
+                zorder=2,
+            )
+        else:
+            print(f"Ostrzeżenie [{model_name}]: Przewidywana zmienność jest pusta po dropna.")
+
+        ax_vol.axvline(
+            pd.to_datetime(shock_date), color="red", linestyle="--", lw=1.5, label=f"Szok ({shock_date})", zorder=3
+        )
+        ax_vol.set_ylabel("Annual Volatility (%)", fontsize=12)
+        ax_vol.set_xlabel("Data", fontsize=12)
+        ax_vol.legend(frameon=True, fontsize=10)
+        ax_vol.grid(True, alpha=0.3)
+        ax_vol.set_ylim(bottom=0)
+
+        try:
+            ax_vol.xaxis.set_major_locator(mdates.YearLocator())
+            ax_vol.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+            ax_vol.xaxis.set_minor_locator(mdates.MonthLocator(interval=3))
+            plt.setp(ax_price.get_xticklabels(), visible=False)
+        except Exception as e:
+            print(f"Ostrzeżenie [{model_name}]: {e}")
+
+    else:
+         ax_price.set_xlabel("Data", fontsize=12)
+         try:
+            ax_price.xaxis.set_major_locator(mdates.YearLocator())
+            ax_price.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+            ax_price.xaxis.set_minor_locator(mdates.MonthLocator(interval=3))
+         except Exception as e:
+            print(f"Ostrzeżenie [{model_name}]: Błąd przy ustawianiu formaterów dat: {e}")
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.96])
+    plt.show()
+
 
 def plot_initial_data(
     df,

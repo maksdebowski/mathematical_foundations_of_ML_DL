@@ -4,6 +4,129 @@ import config
 import modeling
 
 
+def run_one_day_naive_forecast(
+    df, # Pełny dataframe z rzeczywistymi danymi
+    df_after_shock, # Tylko daty/struktura dla okresu prognozy
+    price_col="Adj Close",
+    vol_col="Realized_Volatility_Daily",
+):
+    """
+    Uruchamia prostą prognozę naiwną na 1 dzień.
+    Przewiduje cenę(t) = cena(t-1) i zmienność(t) = zmienność(t-1).
+    """
+    print("\n--- [DEBUG] Uruchamianie prognozy naiwnej 1-dniowej ---") # Dodano [DEBUG]
+    forecast_dates = df_after_shock.index
+    n_steps = len(forecast_dates)
+    if n_steps == 0:
+        print("[DEBUG] Brak okresu po szoku dla prognozy naiwnej 1-dniowej. Zwracam None.")
+        return None, None
+
+    print(f"[DEBUG] Liczba kroków prognozy: {n_steps}")
+    print(f"[DEBUG] Pierwsza data prognozy: {forecast_dates[0].date()}, Ostatnia: {forecast_dates[-1].date()}")
+    print(f"[DEBUG] Zakres dat w pełnym df: {df.index.min().date()} do {df.index.max().date()}")
+
+
+    predicted_prices = []
+    predicted_vols = []
+    actual_dates_used = [] # Śledź daty, dla których faktycznie mogliśmy prognozować
+
+    # Znajdź datę tuż przed pierwszą datą prognozy
+    first_forecast_date = forecast_dates[0]
+    try:
+        day_before_first = first_forecast_date - pd.Timedelta(days=1)
+        print(f"[DEBUG] Szukam daty startowej <= {day_before_first.date()}")
+        last_actual_date_loc = df.index.get_indexer([day_before_first], method='ffill')[0]
+        print(f"[DEBUG] Znaleziona lokalizacja indeksu startowego: {last_actual_date_loc}")
+
+        if last_actual_date_loc == -1:
+             print(f"[DEBUG] BŁĄD: Nie można znaleźć danych przed pierwszą datą prognozy ({first_forecast_date.date()}). Zwracam None.")
+             raise IndexError(f"Nie można znaleźć danych przed pierwszą datą prognozy ({first_forecast_date.date()}).")
+
+        last_actual_date = df.index[last_actual_date_loc]
+        print(f"[DEBUG] Znaleziona data startowa (ostatni dzień przed prognozą): {last_actual_date.date()}")
+        # Sprawdźmy dane dla tej daty startowej
+        start_price = df.loc[last_actual_date, price_col]
+        start_vol = df.loc[last_actual_date, vol_col]
+        print(f"[DEBUG] Dane dla daty startowej - Cena: {start_price}, Zmienność: {start_vol}")
+        if pd.isna(start_price):
+             print(f"[DEBUG] OSTRZEŻENIE: Cena dla daty startowej {last_actual_date.date()} jest NaN!")
+
+
+    except (KeyError, IndexError) as e:
+        print(f"[DEBUG] BŁĄD przy znajdowaniu punktu startowego: {e}. Zwracam None.")
+        return None, None
+    except Exception as e:
+        print(f"[DEBUG] NIESPODZIEWANY BŁĄD przy znajdowaniu punktu startowego: {e}. Zwracam None.")
+        return None, None
+
+
+    # Pętla przez daty, dla których potrzebujemy prognozy
+    print("[DEBUG] Rozpoczynam pętlę prognozowania...")
+    skipped_count = 0
+    for i, current_forecast_date in enumerate(forecast_dates):
+        # print(f"\n[DEBUG] Krok {i+1}/{n_steps}: Prognoza dla: {current_forecast_date.date()}") # Można odkomentować dla bardzo szczegółowego logu
+        day_before = current_forecast_date - pd.Timedelta(days=1)
+        # print(f"[DEBUG] Szukam rzeczywistego dnia <= {day_before.date()}")
+
+        try:
+            actual_prev_date_loc = df.index.get_indexer([day_before], method='ffill')[0]
+            # print(f"[DEBUG] Lokalizacja indeksu poprzedniego dnia: {actual_prev_date_loc}")
+
+            if actual_prev_date_loc == -1:
+                 # print(f"[DEBUG] OSTRZEŻENIE: Nie można znaleźć indeksu poprzedniego dnia dla {current_forecast_date.date()}. Pomijam.")
+                 skipped_count += 1
+                 continue
+
+            actual_prev_date = df.index[actual_prev_date_loc]
+            # print(f"[DEBUG] Używam danych z rzeczywistej poprzedniej daty: {actual_prev_date.date()}")
+
+            prev_price = df.loc[actual_prev_date, price_col]
+            prev_vol = df.loc[actual_prev_date, vol_col]
+            # print(f"[DEBUG] Poprzednia Cena: {prev_price}, Poprzednia Zmienność: {prev_vol}")
+
+            if pd.isna(prev_price):
+                # print(f"[DEBUG] OSTRZEŻENIE: Poprzednia cena ({actual_prev_date.date()}) jest NaN. Pomijam prognozę dla {current_forecast_date.date()}.")
+                skipped_count += 1
+                continue
+
+            # Jeśli doszliśmy tutaj, dane wydają się OK dla tego kroku
+            # print(f"[DEBUG] Dodaję dane dla {current_forecast_date.date()}")
+            predicted_prices.append(prev_price)
+            predicted_vols.append(prev_vol) # Zapisz nawet jeśli zmienność jest NaN
+            actual_dates_used.append(current_forecast_date)
+
+        except KeyError as ke:
+             print(f"[DEBUG] BŁĄD Klucza podczas dostępu do danych dla {actual_prev_date.date() if 'actual_prev_date' in locals() else 'nieznanej daty'}: {ke}. Pomijam.")
+             skipped_count += 1
+             continue
+        except Exception as e:
+             print(f"[DEBUG] NIESPODZIEWANY BŁĄD dla daty prognozy {current_forecast_date.date()}: {e}")
+             skipped_count += 1
+             continue
+
+    print(f"[DEBUG] Pętla zakończona. Liczba pomyślnie przetworzonych dat: {len(actual_dates_used)}. Liczba pominiętych kroków: {skipped_count}")
+
+    if not actual_dates_used:
+        print("[DEBUG] BŁĄD: Lista 'actual_dates_used' jest pusta po pętli. Zwracam None.")
+        return None, None
+
+    # Utwórz DataFrames z wynikami
+    print("[DEBUG] Tworzenie DataFrame'ów z wynikami...")
+    try:
+        forecast_price_df = pd.DataFrame(
+            {"Predicted_Price": predicted_prices}, index=pd.Index(actual_dates_used, name="Date")
+        )
+        forecast_vol_df = pd.DataFrame(
+            {"Predicted_Volatility": predicted_vols}, index=pd.Index(actual_dates_used, name="Date")
+        )
+        print(f"[DEBUG] Prognoza naiwna 1-dniowa zakończona pomyślnie dla {len(forecast_price_df)} kroków.")
+        # print("[DEBUG] Przykładowa prognoza cen naiwnych:\n", forecast_price_df.head())
+        # print("[DEBUG] Przykładowa prognoza zmienności naiwnych:\n", forecast_vol_df.head())
+        return forecast_price_df, forecast_vol_df
+    except Exception as e:
+        print(f"[DEBUG] BŁĄD podczas tworzenia DataFrame'ów wynikowych: {e}")
+        return None, None
+
 def run_garch_simulation(
     model_results,
     df_after_shock,
