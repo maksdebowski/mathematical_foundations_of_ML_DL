@@ -8,10 +8,10 @@ import simulation
 from evaluation import (
     calculate_price_metrics,
     calculate_volatility_metrics,
-    display_combined_metrics, # Upewnij się, że importujesz poprawną wersję
+    display_combined_metrics,
     qlike_loss,
 )
-import visualization # Zmieniono import, aby pasował do nazwy pliku
+import visualization
 
 
 def run_analysis():
@@ -87,7 +87,7 @@ def run_analysis():
 
     print("Fitting GJR-GARCH(1,1,1)...")
     gjr_111_model_results = modeling.fit_garch_model(returns_before_fit, p=1, o=1, q=1)
-    gjr_111_params = None # noqa
+    gjr_111_params = None
     gjr_111_fit_price = None
     gjr_111_fit_vol = None
     if gjr_111_model_results:
@@ -100,10 +100,9 @@ def run_analysis():
         print("GJR-GARCH(1,1,1) fitting failed.")
 
     print("\n--- 5. Fixed Pre-Shock GARCH/GJR Simulation & Evaluation ---")
-    # Sprawdzenie czy df_before_shock nie jest pusty przed dostępem do iloc[-1]
     if df_before_shock.empty:
         print("Pre-shock data is empty, cannot determine last actual price. Skipping simulations.")
-        return # Lub inna obsługa błędu
+        return
 
     last_actual_price = df_before_shock["Adj Close"].iloc[-1]
     actual_prices_post_shock = df_after_shock["Adj Close"]
@@ -119,7 +118,6 @@ def run_analysis():
             n_sims=config.N_SIMS,
         )
         if sim_prices_garch_fixed is not None and sim_vol_garch_fixed is not None:
-            # Dopasowanie indeksów przed ewaluacją
             common_idx_price = actual_prices_post_shock.index.intersection(sim_prices_garch_fixed.index)
             common_idx_vol = actual_vol_post_shock.index.intersection(sim_vol_garch_fixed.index)
 
@@ -160,7 +158,6 @@ def run_analysis():
             n_sims=config.N_SIMS,
         )
         if sim_prices_gjr_fixed is not None and sim_vol_gjr_fixed is not None:
-            # Dopasowanie indeksów przed ewaluacją
             common_idx_price = actual_prices_post_shock.index.intersection(sim_prices_gjr_fixed.index)
             common_idx_vol = actual_vol_post_shock.index.intersection(sim_vol_gjr_fixed.index)
 
@@ -198,7 +195,6 @@ def run_analysis():
         )
     )
     if sim_prices_garch_adapt is not None and sim_vol_garch_adapt is not None:
-        # Dopasowanie indeksów przed ewaluacją
         common_idx_price = actual_prices_post_shock.index.intersection(sim_prices_garch_adapt.index)
         common_idx_vol = actual_vol_post_shock.index.intersection(sim_vol_garch_adapt.index)
 
@@ -216,8 +212,8 @@ def run_analysis():
 
         visualization.plot_simulation_results(
             df=df,
-            pre_shock_fit_price_df=None, # Brak dopasowania pre-shock dla adaptive
-            pre_shock_fit_vol_df=None,  # Brak dopasowania pre-shock dla adaptive
+            pre_shock_fit_price_df=None,
+            pre_shock_fit_vol_df=None,
             sim_prices_stats=sim_prices_garch_adapt,
             sim_vol_stats=sim_vol_garch_adapt,
             ticker=config.TICKER,
@@ -233,7 +229,6 @@ def run_analysis():
         df, config.SHOCK_DATE, p=1, o=1, q=1, model_type="GJR", n_sims=config.N_SIMS
     )
     if sim_prices_gjr_adapt is not None and sim_vol_gjr_adapt is not None:
-        # Dopasowanie indeksów przed ewaluacją
         common_idx_price = actual_prices_post_shock.index.intersection(sim_prices_gjr_adapt.index)
         common_idx_vol = actual_vol_post_shock.index.intersection(sim_vol_gjr_adapt.index)
 
@@ -251,8 +246,8 @@ def run_analysis():
 
         visualization.plot_simulation_results(
             df=df,
-            pre_shock_fit_price_df=None, # Brak dopasowania pre-shock dla adaptive
-            pre_shock_fit_vol_df=None,  # Brak dopasowania pre-shock dla adaptive
+            pre_shock_fit_price_df=None,
+            pre_shock_fit_vol_df=None,
             sim_prices_stats=sim_prices_gjr_adapt,
             sim_vol_stats=sim_vol_gjr_adapt,
             ticker=config.TICKER,
@@ -270,7 +265,6 @@ def run_analysis():
         df, df_after_shock, last_actual_price, n_sims=config.N_SIMS
     )
     if sim_prices_dyn is not None and used_params_df is not None:
-        # Dopasowanie indeksów przed ewaluacją
         common_idx_price = actual_prices_post_shock.index.intersection(sim_prices_dyn.index)
         common_idx_vol = actual_vol_post_shock.index.intersection(used_params_df.index)
 
@@ -293,7 +287,7 @@ def run_analysis():
             ticker=config.TICKER,
             shock_date=config.SHOCK_DATE,
             approach_name=approach_name_dyn,
-            vol_data=used_params_df["Used_Historical_Volatility"], # Przekaż całą serię do wykresu
+            vol_data=used_params_df["Used_Historical_Volatility"],
             vol_label="Historical Vol Used (T-1yr)",
         )
     else:
@@ -301,12 +295,11 @@ def run_analysis():
 
 
     approach_name_fixed = "Fixed Naive (Year Before Shock)"
-    print(f"\nSimulating with {approach_name_fixed} approach...") # Dodano print
+    print(f"\nSimulating with {approach_name_fixed} approach...")
     sim_prices_fixed, fixed_params = simulation.run_fixed_naive_simulation(
         df, df_after_shock, last_actual_price, n_sims=config.N_SIMS
     )
     if sim_prices_fixed is not None and fixed_params is not None:
-        # Dopasowanie indeksów przed ewaluacją
         common_idx_price = actual_prices_post_shock.index.intersection(sim_prices_fixed.index)
 
         fixed_naive_price_metrics = calculate_price_metrics(
@@ -318,17 +311,15 @@ def run_analysis():
             print(
                 "Warning: Could not retrieve constant volatility for Fixed Naive model."
             )
-            # Nie można obliczyć metryk zmienności
             fixed_naive_vol_metrics = None
         else:
-            # Utwórz serię stałej zmienności dopasowaną do indeksu rzeczywistej zmienności
             predicted_vol_fixed = pd.Series(
                 constant_vol_val, index=actual_vol_post_shock.index
-            ).reindex(actual_vol_post_shock.index) # Upewnij się, że indeks pasuje
+            ).reindex(actual_vol_post_shock.index)
 
             fixed_naive_vol_metrics = calculate_volatility_metrics(
-                actual_vol_post_shock, # Przekaż całą serię rzeczywistą
-                predicted_vol_fixed # Przekaż całą serię przewidywaną
+                actual_vol_post_shock,
+                predicted_vol_fixed
             )
 
         display_combined_metrics(
@@ -342,7 +333,7 @@ def run_analysis():
                 ticker=config.TICKER,
                 shock_date=config.SHOCK_DATE,
                 approach_name=approach_name_fixed,
-                vol_data=constant_vol_val, # Przekaż pojedynczą wartość do wykresu
+                vol_data=constant_vol_val,
                 vol_label="Assumed Constant Volatility",
             )
         else:
@@ -353,18 +344,15 @@ def run_analysis():
     else:
         print(f"{approach_name_fixed} simulation failed or did not return parameters.")
 
-    # --- 8. 1-Day Naive Forecast & Evaluation --- NOWA SEKCJA ---
     approach_name_1day = "1-Day Naive"
     print(f"\n--- 8. {approach_name_1day} Forecast & Evaluation ---")
     print(f"\nRunning {approach_name_1day} forecast...")
     one_day_naive_price_fcst, one_day_naive_vol_fcst = simulation.run_one_day_naive_forecast(
-        df, df_after_shock # Przekaż pełny df i df po szoku
+        df, df_after_shock
     )
 
     if one_day_naive_price_fcst is not None:
-        # Ewaluacja
         print(f"Evaluating {approach_name_1day}...")
-        # Dopasuj indeksy przed ewaluacją
         common_index_price = actual_prices_post_shock.index.intersection(one_day_naive_price_fcst.index)
         if common_index_price.empty:
              print(f"Warning: No common dates found for {approach_name_1day} price evaluation.")
@@ -378,7 +366,6 @@ def run_analysis():
         one_day_vol_metrics = None
         if one_day_naive_vol_fcst is not None:
              common_index_vol = actual_vol_post_shock.index.intersection(one_day_naive_vol_fcst.index)
-             # Sprawdź czy indeksy nie są puste po przecięciu
              if not common_index_vol.empty:
                  one_day_vol_metrics = calculate_volatility_metrics(
                      actual_vol_post_shock.loc[common_index_vol],
@@ -394,12 +381,12 @@ def run_analysis():
         visualization.plot_single_forecast_results(
             df_post_shock=df_after_shock,
             forecast_price_df=one_day_naive_price_fcst,
-            forecast_vol_df=one_day_naive_vol_fcst, # Przekaż prognozę zmienności
+            forecast_vol_df=one_day_naive_vol_fcst,
             ticker=config.TICKER,
             shock_date=config.SHOCK_DATE,
             model_name=approach_name_1day,
-            price_col_forecast='Predicted_Price', # Określ nazwę kolumny
-            vol_col_forecast='Predicted_Volatility' # Określ nazwę kolumny
+            price_col_forecast='Predicted_Price',
+            vol_col_forecast='Predicted_Volatility'
         )
     else:
         print(f"{approach_name_1day} forecast failed.")
