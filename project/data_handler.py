@@ -65,7 +65,6 @@ def preprocess_data(
     print(f"Preprocessing complete. Final data shape: {df.shape}")
     return df
 
-
 def split_data_by_shock(df, shock_date=config.SHOCK_DATE):
     shock_datetime = pd.to_datetime(shock_date)
     df_before_shock = df[df.index < shock_datetime].copy()
